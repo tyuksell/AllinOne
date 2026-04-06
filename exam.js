@@ -1,5 +1,5 @@
 /* ════════════════════════════════════════════
-   ToStudy – Exam Planner Module
+   ToStudy – Exam Planner Module (Time Enhanced)
    ════════════════════════════════════════════ */
 
 const ExamModule = (() => {
@@ -18,32 +18,43 @@ const ExamModule = (() => {
         if (countdownInterval) { clearInterval(countdownInterval); countdownInterval = null; }
     }
 
-    function parseDate(str) {
-        // accepts GG.AA.YYYY
-        const p = str.split('.');
-        if (p.length !== 3) return null;
-        const d = new Date(parseInt(p[2]), parseInt(p[1]) - 1, parseInt(p[0]));
+    // YENİ: Tarih ve Saati birleştirip Date objesi döndüren fonksiyon
+    function parseDateTime(dateStr, timeStr = "09:00") {
+        const dP = dateStr.split('.');
+        const tP = timeStr.split(':');
+        if (dP.length !== 3) return null;
+        
+        // Eğer saat girilmemişse varsayılan 09:00 kabul et
+        const hour = tP[0] ? parseInt(tP[0]) : 9;
+        const min = tP[1] ? parseInt(tP[1]) : 0;
+
+        const d = new Date(parseInt(dP[2]), parseInt(dP[1]) - 1, parseInt(dP[0]), hour, min);
         return isNaN(d.getTime()) ? null : d;
     }
 
     function render(container) {
         cleanup();
         let exams = load();
+        
+        // YENİ: Listeyi tarih ve saate göre otomatik sırala
+        exams.sort((a, b) => {
+            return parseDateTime(a.date, a.time) - parseDateTime(b.date, b.time);
+        });
+
         const modalBox = container.closest('.modal-box');
         if (modalBox) modalBox.classList.add('exam-theme');
 
         function buildHTML() {
-            // En yakın sınavı bul
             const now = Date.now();
             let nearest = null;
+            
             exams.forEach(e => {
-                const d = parseDate(e.date);
+                const d = parseDateTime(e.date, e.time);
                 if (d && d.getTime() > now) {
-                    if (!nearest || d.getTime() < parseDate(nearest.date).getTime()) nearest = e;
+                    if (!nearest || d.getTime() < parseDateTime(nearest.date, nearest.time).getTime()) nearest = e;
                 }
             });
 
-            // Dinamik SVG Çember Şablonu
             const svgRing = (id) => `
                 <svg viewBox="0 0 100 100">
                     <circle class="bg-ring" cx="50" cy="50" r="40"></circle>
@@ -71,34 +82,22 @@ const ExamModule = (() => {
 
         <div class="countdown-box" id="exam-countdown">
             ${nearest ? `
-                <div class="countdown-exam-name">${escapeHtml(nearest.name)}</div>
+                <div class="countdown-exam-name">${escapeHtml(nearest.name)} (${nearest.time || '09:00'})</div>
                 <div class="countdown-digits">
                     <div class="cd-unit">
-                        <div class="cd-value">
-                            ${svgRing('cd-days')}
-                            <div class="digit-number" id="cd-days-val">--</div>
-                        </div>
+                        <div class="cd-value">${svgRing('cd-days')}<div class="digit-number" id="cd-days-val">--</div></div>
                         <div class="cd-label">Gün</div>
                     </div>
                     <div class="cd-unit">
-                        <div class="cd-value">
-                            ${svgRing('cd-hrs')}
-                            <div class="digit-number" id="cd-hrs-val">--</div>
-                        </div>
+                        <div class="cd-value">${svgRing('cd-hrs')}<div class="digit-number" id="cd-hrs-val">--</div></div>
                         <div class="cd-label">Saat</div>
                     </div>
                     <div class="cd-unit">
-                        <div class="cd-value">
-                            ${svgRing('cd-mins')}
-                            <div class="digit-number" id="cd-mins-val">--</div>
-                        </div>
+                        <div class="cd-value">${svgRing('cd-mins')}<div class="digit-number" id="cd-mins-val">--</div></div>
                         <div class="cd-label">Dk</div>
                     </div>
                     <div class="cd-unit">
-                        <div class="cd-value">
-                            ${svgRing('cd-secs')}
-                            <div class="digit-number" id="cd-secs-val">--</div>
-                        </div>
+                        <div class="cd-value">${svgRing('cd-secs')}<div class="digit-number" id="cd-secs-val">--</div></div>
                         <div class="cd-label">Sn</div>
                     </div>
                 </div>
@@ -107,7 +106,8 @@ const ExamModule = (() => {
 
         <div class="input-row" style="margin-bottom: 25px;">
             <input class="neu-input exam-input" id="exam-name" type="text" placeholder="Sınav Adı" />
-            <input class="neu-input exam-input" id="exam-date" type="text" placeholder="GG.AA.YYYY" style="max-width:130px;" />
+            <input class="neu-input exam-input" id="exam-date" type="text" placeholder="GG.AA.YYYY" style="max-width:115px;" />
+            <input class="neu-input exam-input" id="exam-time" type="text" placeholder="SS:DD" style="max-width:75px;" />
             <button class="neu-btn primary" id="exam-add" style="background: var(--exam-accent); color: white; border: none;">${App.svgPlus()}</button>
         </div>
 
@@ -127,35 +127,38 @@ const ExamModule = (() => {
             <div class="exam-card-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
                 <h3 style="margin: 0; font-size: 1.1rem; color: #2d3748;">${escapeHtml(e.name)}</h3>
                 <div style="display:flex; align-items:center; gap:8px;">
-                    <span class="exam-date" style="background: rgba(94, 129, 244, 0.1); color: var(--exam-accent); padding: 2px 8px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;">${escapeHtml(e.date)}</span>
-                    <button class="neu-btn-icon danger" data-del-exam="${e.id}" title="Sınavı Sil" style="color: var(--danger);">${App.svgTrash()}</button>
+                    <span class="exam-date" style="background: rgba(94, 129, 244, 0.1); color: var(--exam-accent); padding: 2px 8px; border-radius: 8px; font-size: 0.85rem; font-weight: 600;">
+                        ${escapeHtml(e.date)} - ${escapeHtml(e.time || '09:00')}
+                    </span>
+                    <button class="neu-btn-icon danger" data-del-exam="${e.id}" title="Sınavı Sil">${App.svgTrash()}</button>
                 </div>
             </div>
-
+            
             <div class="exam-prep-label" style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px;">Hazırlık: ${pct}%</div>
-            <div class="neu-progress" style="height: 10px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden; box-shadow: inset 2px 2px 4px rgba(0,0,0,0.05);">
-                <div class="neu-progress-fill" style="width:${pct}%; background: var(--exam-accent); height: 100%; border-radius: 10px; transition: width 0.4s ease;"></div>
+            <div class="neu-progress" style="height: 10px; background: rgba(0,0,0,0.05); border-radius: 10px; overflow: hidden;">
+                <div class="neu-progress-fill" style="width:${pct}%; background: var(--exam-accent); height: 100%; border-radius: 10px;"></div>
             </div>
 
             <div class="exam-subjects" style="margin-top: 15px;">
                 ${e.subjects.map(s => `
-                    <div class="exam-subject-row" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 5px; border-radius: 8px; transition: background 0.2s;">
-                        <div class="neu-checkbox ${s.done ? 'checked' : ''}" data-exam-id="${e.id}" data-subj-id="${s.id}" style="cursor: pointer; color: ${s.done ? 'var(--exam-accent)' : 'var(--text-secondary)'};">
+                    <div class="exam-subject-row" style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <div class="neu-checkbox ${s.done ? 'checked' : ''}" data-exam-id="${e.id}" data-subj-id="${s.id}">
                             ${App.svgCheck()}
                         </div>
-                        <span class="subject-text ${s.done ? 'done' : ''}" style="flex-grow: 1; font-size: 0.9rem; ${s.done ? 'text-decoration: line-through; opacity: 0.6;' : ''}">${escapeHtml(s.name)}</span>
-                        <button class="neu-btn-icon" data-del-subj="${s.id}" data-parent="${e.id}" title="Konuyu Sil" style="opacity: 0.5; font-size: 0.8rem;">✕</button>
+                        <span class="subject-text ${s.done ? 'done' : ''}" style="flex-grow: 1; font-size: 0.9rem;">${escapeHtml(s.name)}</span>
+                        <button class="neu-btn-icon" data-del-subj="${s.id}" data-parent="${e.id}">✕</button>
                     </div>
                 `).join('')}
             </div>
 
             <div class="input-row mt-8" style="margin-top: 12px; gap: 8px;">
-                <input class="neu-input exam-input" placeholder="Konu ekle..." data-subj-input="${e.id}" style="padding: 8px 12px; font-size: 0.85rem;" />
-                <button class="neu-btn sm" data-add-subj="${e.id}" style="width: 36px; height: 36px; padding: 0; background: var(--exam-bg); color: var(--exam-accent);">${App.svgPlus()}</button>
+                <input class="neu-input exam-input" placeholder="Konu ekle..." data-subj-input="${e.id}" />
+                <button class="neu-btn sm" data-add-subj="${e.id}">${App.svgPlus()}</button>
             </div>
         </div>
     `;
         }
+
         function mount() {
             container.innerHTML = buildHTML();
             attachEvents();
@@ -166,20 +169,22 @@ const ExamModule = (() => {
             const addBtn = container.querySelector('#exam-add');
             const nameIn = container.querySelector('#exam-name');
             const dateIn = container.querySelector('#exam-date');
+            const timeIn = container.querySelector('#exam-time'); // Yeni input yakalandı
+
             if (addBtn) {
                 const doAdd = () => {
                     const name = nameIn.value.trim();
                     const date = dateIn.value.trim();
+                    const time = timeIn.value.trim() || "09:00"; // Saat boşsa varsayılan
                     if (!name || !date) return;
-                    exams.push({ id: App.uid(), name, date, subjects: [] });
+                    exams.push({ id: App.uid(), name, date, time, subjects: [] });
                     save(exams);
                     mount();
                 };
                 addBtn.addEventListener('click', doAdd);
-                nameIn.addEventListener('keydown', e => { if (e.key === 'Enter') doAdd(); });
-                dateIn.addEventListener('keydown', e => { if (e.key === 'Enter') doAdd(); });
             }
 
+            // Diğer event listener'lar (delete, toggle vs.) aynı kalacak
             container.querySelectorAll('[data-del-exam]').forEach(btn => {
                 btn.addEventListener('click', e => {
                     e.stopPropagation();
@@ -221,30 +226,21 @@ const ExamModule = (() => {
                     }
                 });
             });
-            container.querySelectorAll('[data-subj-input]').forEach(input => {
-                input.addEventListener('keydown', e => {
-                    if (e.key === 'Enter') {
-                        const btn = container.querySelector(`[data-add-subj="${input.dataset.subjInput}"]`);
-                        btn?.click();
-                    }
-                });
-            });
         }
 
         function startCountdown() {
             const now = Date.now();
             let nearest = null;
             exams.forEach(e => {
-                const d = parseDate(e.date);
+                const d = parseDateTime(e.date, e.time); // Güncellendi
                 if (d && d.getTime() > now) {
-                    if (!nearest || d.getTime() < parseDate(nearest.date).getTime()) nearest = e;
+                    if (!nearest || d.getTime() < parseDateTime(nearest.date, nearest.time).getTime()) nearest = e;
                 }
             });
             if (!nearest) return;
 
-            const target = parseDate(nearest.date).getTime();
+            const target = parseDateTime(nearest.date, nearest.time).getTime(); // Güncellendi
             
-            // Çemberleri güncelleyen yardımcı fonksiyon
             function setRing(id, percent) {
                 const ring = document.getElementById(id);
                 if (!ring) return;
@@ -256,9 +252,7 @@ const ExamModule = (() => {
                 const diff = target - Date.now();
                 if (diff <= 0) {
                     cleanup();
-                    const dEl = document.getElementById('cd-days-val');
-                    if (dEl) dEl.textContent = '0';
-                    setRing('cd-days-ring', 0); setRing('cd-hrs-ring', 0); setRing('cd-mins-ring', 0); setRing('cd-secs-ring', 0);
+                    if (document.getElementById('cd-days-val')) document.getElementById('cd-days-val').textContent = '0';
                     return;
                 }
                 
@@ -267,19 +261,12 @@ const ExamModule = (() => {
                 const mins = Math.floor((diff % 3600000) / 60000);
                 const secs = Math.floor((diff % 60000) / 1000);
                 
-                // Rakamları güncelle
-                const dEl = document.getElementById('cd-days-val');
-                const hEl = document.getElementById('cd-hrs-val');
-                const mEl = document.getElementById('cd-mins-val');
-                const sEl = document.getElementById('cd-secs-val');
-                
-                if (dEl) dEl.textContent = days;
-                if (hEl) hEl.textContent = String(hrs).padStart(2, '0');
-                if (mEl) mEl.textContent = String(mins).padStart(2, '0');
-                if (sEl) sEl.textContent = String(secs).padStart(2, '0');
+                if (document.getElementById('cd-days-val')) document.getElementById('cd-days-val').textContent = days;
+                if (document.getElementById('cd-hrs-val')) document.getElementById('cd-hrs-val').textContent = String(hrs).padStart(2, '0');
+                if (document.getElementById('cd-mins-val')) document.getElementById('cd-mins-val').textContent = String(mins).padStart(2, '0');
+                if (document.getElementById('cd-secs-val')) document.getElementById('cd-secs-val').textContent = String(secs).padStart(2, '0');
 
-                // Halkaları güncelle
-                setRing('cd-days-ring', (days / 30) * 100); // 30 gün üzerinden yüzdelik (Görsellik için)
+                setRing('cd-days-ring', (days / 30) * 100);
                 setRing('cd-hrs-ring', (hrs / 24) * 100);
                 setRing('cd-mins-ring', (mins / 60) * 100);
                 setRing('cd-secs-ring', (secs / 60) * 100);

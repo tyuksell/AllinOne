@@ -4,19 +4,21 @@
 
 /* ─── Tokens ─── */
 :root {
-    --bg: #d8e0e9;
+    --bg: #ebf0f7;
     --bg-dark: #c0c8d4;
-    --text: #3a4a5c;
-    --text-light: #6b7d91;
-    --accent: #5b8def;
-    --accent-hover: #4a7de0;
+    --text: #313a4c;
+    --text-light: #707a8a;
+    --accent: #6c5ce7;
+    --accent-hover: #050505;
     --danger: #e05c5c;
     --success: #4caf7d;
     --shadow-dark: 12px 12px 24px rgba(140, 155, 175, 0.9);
-    --shadow-light: -12px -12px 24px rgba(255, 255, 255, 0.8);
+    --shadow-light: 8px 8px 16px #d1d9e6, 
+                    -8px -8px 16px #ffffff;
     --shadow-dark-sm: 6px 6px 12px rgba(140, 155, 175, 0.7);
     --shadow-light-sm: -6px -6px 12px rgba(255, 255, 255, 0.7);
-    --shadow-inset: inset 4px 4px 8px rgba(140, 155, 175, 0.5), inset -4px -4px 8px rgba(255, 255, 255, 0.7);
+    --shadow-inset: inset 6px 6px 12px #cfd8e3, 
+                    inset -6px -6px 12px #ffffff;
     --shadow-inset-sm: inset 2px 2px 5px rgba(140, 155, 175, 0.45), inset -2px -2px 5px rgba(255, 255, 255, 0.65);
     --radius: 16px;
     --radius-sm: 10px;
